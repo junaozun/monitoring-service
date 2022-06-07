@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postservice
+  labels:
+    app: postservice
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: postservice
+      labels:
+        app: postservice
+    spec:
+      containers:
+        - name: postservice
+          image: xiongchuanhong/postservice:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+            - containerPort: 8082
+      restartPolicy: Always
+  selector:
+    matchLabels:
+      app: postservice
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postservice
+  labels:
+    svc: postservice
+spec:
+  selector:
+    app: postservice
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: postservice2
+    - port: 8080
+      targetPort: 8080
+      name: postservice
+  type: ClusterIP
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: postserviceing
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /postservice
+            pathType: Prefix
+            backend:
+              service:
+                name: postservice
+                port:
+                  number: 8082
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postservice
+  labels:
+    release: prometheus
+spec:
+  endpoints:
+    - port: postservice
+      path: /metrics
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - default
+  selector:
+    matchLabels:
+      svc: postservice

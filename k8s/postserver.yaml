@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postserver
+  labels:
+    app: postserver
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: postserver
+      labels:
+        app: postserver
+    spec:
+      containers:
+        - name: postserver
+          image: xiongchuanhong/postserver:v1
+          imagePullPolicy: IfNotPresent
+          ## 容器内部的端口
+          ports:
+            - containerPort: 9090
+            - containerPort: 8080
+      restartPolicy: Always
+  selector:
+    matchLabels:
+      app: postserver
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: postserver
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /postserver
+            pathType: Prefix
+            backend:
+              service:
+                name: postserver
+                port:
+                  number: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postserver
+  labels:
+    svc: postserver
+spec:
+  selector:
+    app: postserver
+  ports:
+    - targetPort: 9090
+      port: 9090
+      name: postserver2
+    - targetPort: 8080
+      port: 8080
+      name: postserver
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postserver
+  labels:
+    release: prometheus
+spec:
+  endpoints:
+    - port: postserver
+      path: /metrics
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - default
+  selector:
+    matchLabels:
+      svc: postserver
+---
